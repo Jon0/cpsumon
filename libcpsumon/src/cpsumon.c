@@ -279,6 +279,9 @@ int read_psu_main_power(int fd) {
 
     if (set_main_page(fd, 0) == -1) return -1;
 
+    set_psu_ocp_mode(fd, 2);
+    set_psu_fan_fixed_percent(fd, 50.0);
+
     if ((ret = read_data_psu(fd, 0x97, 2)) == NULL) return -1;
     unk1 = convert_byte_float(ret);
     free(ret);
@@ -363,52 +366,56 @@ int read_psu_rail12v(int fd) {
     float f;
     int chnnum = (_psu_type == TYPE_AX1500 ? 10 : ((_psu_type == TYPE_AX1200) ? 8 : 6));
     for (i = 0; i < chnnum + 2; i++) {
-//	printf("chnnum=%d\n", i);
-	if (set_main_page(fd, 0) == -1) return -1;
-	if (set_12v_page(fd, (_psu_type != TYPE_AX1200 && _psu_type != TYPE_AX1500 && i >= chnnum) ? i + 2 : i) == -1) return -1;
+		//	printf("chnnum=%d\n", i);
+		if (set_main_page(fd, 0) == -1) return -1;
+		
+	    // fix set_page (12v): set failed: 0, a
+	    if (set_12v_page(fd, (_psu_type != TYPE_AX1200 && _psu_type != TYPE_AX1500 && i >= chnnum) ? i + 2 : i + 1) == -1) return -1;
 
-	if ((ret = read_data_psu(fd, 0x8b, 2)) == NULL) return -1;
-	    if (i == chnnum) _rail12v.atx.voltage = convert_byte_float(ret);
-	    else if (i == chnnum + 1) _rail12v.peripheral.voltage = convert_byte_float(ret);
-	    else _rail12v.pcie[i].voltage = convert_byte_float(ret);
-	free(ret);
-	if ((ret = read_data_psu(fd, 0xe8, 2)) == NULL) return -1;
-	    if (i == chnnum) _rail12v.atx.current = convert_byte_float(ret);
-	    else if (i == chnnum + 1) _rail12v.peripheral.current = convert_byte_float(ret);
-	    else _rail12v.pcie[i].current = convert_byte_float(ret);
-	free(ret);
-	if ((ret = read_data_psu(fd, 0xe9, 2)) == NULL) return -1;
-	    if (i == chnnum) _rail12v.atx.power = convert_byte_float(ret);
-	    else if (i == chnnum + 1) _rail12v.peripheral.power = convert_byte_float(ret);
-	    else _rail12v.pcie[i].power = convert_byte_float(ret);
-	free(ret);
-	if ((ret = read_data_psu(fd, 0xea, 2)) == NULL) return -1;
-	if (ret[0] == 0xff || (f = convert_byte_float(ret)) > 40.0) {
-	    f = 40.0;
-	    if (i == chnnum) {
-		_rail12v.atx.ocp_enabled = false;
-		_rail12v.atx.ocp_limit = f;
-	    }else if (i == chnnum + 1) {
-		_rail12v.peripheral.ocp_enabled = false;
-		_rail12v.peripheral.ocp_limit = f;
-	    } else {
-		_rail12v.pcie[i].ocp_enabled = false;
-		_rail12v.pcie[i].ocp_limit = f;
-	    }
-	} else {
-	    if (f < 0.0) f = 0.0;
-	    if (i == chnnum) {
-		_rail12v.atx.ocp_enabled = true;
-		_rail12v.atx.ocp_limit = f;
-	    }else if (i == chnnum + 1) {
-		_rail12v.peripheral.ocp_enabled = true;
-		_rail12v.peripheral.ocp_limit = f;
-	    } else {
-		_rail12v.pcie[i].ocp_enabled = true;
-		_rail12v.pcie[i].ocp_limit = f;
-	    }
-	}
-	free(ret);
+	    set_psu_rail_ocp(fd, 0, 40.0);
+
+		if ((ret = read_data_psu(fd, 0x8b, 2)) == NULL) return -1;
+		    if (i == chnnum) _rail12v.atx.voltage = convert_byte_float(ret);
+		    else if (i == chnnum + 1) _rail12v.peripheral.voltage = convert_byte_float(ret);
+		    else _rail12v.pcie[i].voltage = convert_byte_float(ret);
+		free(ret);
+		if ((ret = read_data_psu(fd, 0xe8, 2)) == NULL) return -1;
+		    if (i == chnnum) _rail12v.atx.current = convert_byte_float(ret);
+		    else if (i == chnnum + 1) _rail12v.peripheral.current = convert_byte_float(ret);
+		    else _rail12v.pcie[i].current = convert_byte_float(ret);
+		free(ret);
+		if ((ret = read_data_psu(fd, 0xe9, 2)) == NULL) return -1;
+		    if (i == chnnum) _rail12v.atx.power = convert_byte_float(ret);
+		    else if (i == chnnum + 1) _rail12v.peripheral.power = convert_byte_float(ret);
+		    else _rail12v.pcie[i].power = convert_byte_float(ret);
+		free(ret);
+		if ((ret = read_data_psu(fd, 0xea, 2)) == NULL) return -1;
+		if (ret[0] == 0xff || (f = convert_byte_float(ret)) > 40.0) {
+		    f = 40.0;
+		    if (i == chnnum) {
+			_rail12v.atx.ocp_enabled = false;
+			_rail12v.atx.ocp_limit = f;
+		    }else if (i == chnnum + 1) {
+			_rail12v.peripheral.ocp_enabled = false;
+			_rail12v.peripheral.ocp_limit = f;
+		    } else {
+			_rail12v.pcie[i].ocp_enabled = false;
+			_rail12v.pcie[i].ocp_limit = f;
+		    }
+		} else {
+		    if (f < 0.0) f = 0.0;
+		    if (i == chnnum) {
+			_rail12v.atx.ocp_enabled = true;
+			_rail12v.atx.ocp_limit = f;
+		    }else if (i == chnnum + 1) {
+			_rail12v.peripheral.ocp_enabled = true;
+			_rail12v.peripheral.ocp_limit = f;
+		    } else {
+			_rail12v.pcie[i].ocp_enabled = true;
+			_rail12v.pcie[i].ocp_limit = f;
+		    }
+		}
+		free(ret);
     }
     return 0;
 }
@@ -449,6 +456,49 @@ int read_psu_railmisc(int fd) {
     free(ret);
 
     _railmisc.rail_3_3v.power = (unk1 + (_railmisc.rail_3_3v.voltage * _railmisc.rail_3_3v.current))/2.0;
+
+    return 0;
+}
+
+
+int set_psu_ocp_mode(int fd, int mode) {
+    // 1 single. 2 multi?
+    char modec = mode;
+
+    // read current mode
+    unsigned char * ret;
+
+    //ret = write_data_psu(fd, 0xd8, &modec, 1);
+    //if (!ret) return -1;
+
+    if ((ret = read_data_psu(fd, 0xd8, 1)) == NULL) return -1;
+    printf("OCP Mode %x\n", ret[0]);
+
+    return 0;
+}
+
+int set_psu_rail_ocp(int fd, int enable, float f) {
+    char amps[2];
+    if (enable) {
+    	amps[0] = 48; //{128, 226};
+    	amps[0] = 226;
+    }
+    else {
+    	amps[0] = 0xff;
+    	amps[0] = 0x00;
+    }
+    char enablec = enable ? 0x01 : 0xfe; // 1 or 254
+	unsigned char * ret;
+
+    ret = write_data_psu(fd, 0xea, amps, 2);
+    if (!ret) return -1;
+    
+	ret = write_data_psu(fd, 0xec, &enablec, 1);
+    if (!ret) return -1;
+
+    // reads ff once the ocp setting is applied
+    if ((ret = read_data_psu(fd, 0xec, 1)) == NULL) return -1;
+    //printf("Unknown %x\n", ret[0]);
 
     return 0;
 }

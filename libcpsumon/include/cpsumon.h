@@ -120,6 +120,8 @@ int read_psu_rail12v(int fd);
 int read_psu_railmisc(int fd);
 int read_psu_fan_speed(int fd, float * f);
 int read_psu_temp(int fd, float * f);
+int set_psu_ocp_mode(int fd, int mode);
+int set_psu_rail_ocp(int fd, int enable, float f);
 int read_psu_fan_fixed_percent(int fd, int * i);
 int set_psu_fan_fixed_percent(int fd, float f);
 int read_psu_fan_mode(int fd, int * m);
