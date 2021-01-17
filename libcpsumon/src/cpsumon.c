@@ -279,9 +279,6 @@ int read_psu_main_power(int fd) {
 
     if (set_main_page(fd, 0) == -1) return -1;
 
-    set_psu_ocp_mode(fd, 2);
-    set_psu_fan_fixed_percent(fd, 50.0);
-
     if ((ret = read_data_psu(fd, 0x97, 2)) == NULL) return -1;
     unk1 = convert_byte_float(ret);
     free(ret);
@@ -360,8 +357,8 @@ int read_psu_main_power(int fd) {
     return 0;
 }
 
-int read_psu_rail12v(int fd) {
-    int i;
+int set_psu_rail12v(int fd) {
+	    int i;
     unsigned char * ret;
     float f;
     int chnnum = (_psu_type == TYPE_AX1500 ? 10 : ((_psu_type == TYPE_AX1200) ? 8 : 6));
@@ -373,6 +370,21 @@ int read_psu_rail12v(int fd) {
 	    if (set_12v_page(fd, (_psu_type != TYPE_AX1200 && _psu_type != TYPE_AX1500 && i >= chnnum) ? i + 2 : i + 1) == -1) return -1;
 
 	    set_psu_rail_ocp(fd, 0, 40.0);
+	}
+	return 0;
+}
+
+int read_psu_rail12v(int fd) {
+    int i;
+    unsigned char * ret;
+    float f;
+    int chnnum = (_psu_type == TYPE_AX1500 ? 10 : ((_psu_type == TYPE_AX1200) ? 8 : 6));
+    for (i = 0; i < chnnum + 2; i++) {
+		//	printf("chnnum=%d\n", i);
+		if (set_main_page(fd, 0) == -1) return -1;
+		
+	    // fix set_page (12v): set failed: 0, a
+	    if (set_12v_page(fd, (_psu_type != TYPE_AX1200 && _psu_type != TYPE_AX1500 && i >= chnnum) ? i + 2 : i + 1) == -1) return -1;
 
 		if ((ret = read_data_psu(fd, 0x8b, 2)) == NULL) return -1;
 		    if (i == chnnum) _rail12v.atx.voltage = convert_byte_float(ret);
@@ -463,6 +475,7 @@ int read_psu_railmisc(int fd) {
 
 int set_psu_ocp_mode(int fd, int mode) {
     // 1 single. 2 multi?
+    // or 1 is manual, 2 auto
     char modec = mode;
 
     // read current mode
@@ -496,7 +509,7 @@ int set_psu_rail_ocp(int fd, int enable, float f) {
 	ret = write_data_psu(fd, 0xec, &enablec, 1);
     if (!ret) return -1;
 
-    // reads ff once the ocp setting is applied
+    // reads 0 if defualt or ff once the ocp setting is applied
     if ((ret = read_data_psu(fd, 0xec, 1)) == NULL) return -1;
     //printf("Unknown %x\n", ret[0]);
 
@@ -542,7 +555,15 @@ int read_psu_fan_speed(int fd, float * f) {
     return 0;
 }
 
-int read_psu_temp(int fd, float * f) {
+int read_psu_temp1(int fd, float * f) {
+    unsigned char * ret = read_data_psu(fd, 0x8d, 2);
+    if (!ret) return -1;
+    *f = convert_byte_float(ret);
+    free(ret);
+    return 0;
+}
+
+int read_psu_temp2(int fd, float * f) {
     unsigned char * ret = read_data_psu(fd, 0x8e, 2);
     if (!ret) return -1;
     *f = convert_byte_float(ret);

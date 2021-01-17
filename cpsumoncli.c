@@ -37,6 +37,16 @@ int main (int argc, char * argv[]) {
 
     if (setup_dongle(fd) == -1) exit(-1);
 
+    if (argc > 2 && strcmp(argv[2], "--setup") == 0) {
+
+        if (set_main_page(fd, 0) == -1) return -1;
+
+        set_psu_ocp_mode(fd, 2);
+        set_psu_fan_mode(fd, 1);
+        set_psu_fan_fixed_percent(fd, 50.0);
+        set_psu_rail12v(fd);
+    }
+
     if (read_psu_fan_mode(fd, &i) == -1) exit(-1);
     if (i == FANMODE_AUTO) printf("Fan mode: Auto\n");
     else if (i == FANMODE_FIXED) {
@@ -48,8 +58,10 @@ int main (int argc, char * argv[]) {
 
     if (read_psu_fan_speed(fd, &f) == -1) exit(-1);
     printf("Fan speed: %0.2f RPM\n", f);
-    if (read_psu_temp(fd, &f) == -1) exit(-1);
-    printf("Temperature: %0.2f °C\n", f);
+    if (read_psu_temp1(fd, &f) == -1) exit(-1);
+    printf("Temperature 1: %0.2f °C\n", f);
+    if (read_psu_temp2(fd, &f) == -1) exit(-1);
+    printf("Temperature 2: %0.2f °C\n", f);
 
     if (read_psu_main_power(fd) == -1) exit(-1);
 
